@@ -1,4 +1,8 @@
-# MLコンペ用実験テンプレート
+# Orbit Wars 再挑戦
+
+終了済みの Kaggle コンペ [Orbit Wars](https://www.kaggle.com/competitions/orbit-wars) を再挑戦するためのリポジトリです。現在は初期段階で、環境を理解しながらプロジェクトの進行方針を確定していきます。公式リーダーボードの順位更新は目的にしていません。ルール・評価・未確認事項は [docs/COMPETITION.md](docs/COMPETITION.md)、現在の作業状態は [docs/HANDOVER.md](docs/HANDOVER.md) を正本にします。
+
+ローカル比較は `orbit/protocols/` の対戦プロトコルで行います。提出物は `agent(obs)` を持つエージェントです。学習コードはまだありません。
 
 ## 特徴
 - Kaggle公式イメージを利用したDocker環境（uv環境との完全一致は未検証）
@@ -23,11 +27,11 @@
 │   ├── EXPERIMENTS.md
 │   ├── EXPERIMENT_LOG.md
 │   └── HANDOVER.md
+├── agents
 ├── experiments
-├── input
 ├── notebooks
+├── orbit
 ├── output
-├── tools
 ├── utils
 ├── .python-version
 ├── Dockerfile
@@ -51,7 +55,7 @@ Codex・Cursor・Antigravityなどを併用する場合も、共通ルールは�
 - [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) — 実験結果と判断の追記型台帳（自動追跡基盤の実装前）
 - [docs/HANDOVER.md](docs/HANDOVER.md) — 現在の進捗・進行中ジョブ・次の作業の要約
 
-`utils.validation` でCV分割の保存・再利用とOOF整合性検証、`utils.artifacts` で一意のrunディレクトリ・設定・メトリクス保存が可能です。**学習そのものやCV評価値の自動算出は行いません。** HydraサンプルはW&Bの初期化とrunメタデータの保存のみを行い、架空のスコアは記録しません。
+`orbit.match` が試合を実行し、`utils.artifacts` が run ディレクトリへ設定と実測メトリクスを保存します。勝率は実行した試合から計算します。公式スキルレーティングは取得しません。学習は未実装です。
 
 ## 環境構築
 
@@ -63,8 +67,9 @@ Codex・Cursor・Antigravityなどを併用する場合も、共通ルールは�
 # セットアップ
 make uv-setup
 
-# スクリプトを実行する場合
-uv run python -m experiments.exp000_sample.run exp=001
+# 評価を実行する場合（学習しない）
+uv run python -m experiments.exp001_random_eval.run exp=000
+uv run python -m experiments.exp002_nearest_eval.run exp=000
 ```
 
 ### Docker による環境構築
@@ -85,82 +90,25 @@ DockerはJupyterサーバーを起動せず、`make bash` でシェルを開い�
 ## スクリプトの実行方法
 
 ```sh
-# python -m experiments.{major_version_name}.run exp={minor_version_name}
-
-python -m experiments.exp000_sample.run
-python -m experiments.exp000_sample.run exp=001
+uv run python -m experiments.exp001_random_eval.run exp=000
+uv run python -m experiments.exp002_nearest_eval.run exp=000
 ```
 
-※ `python -m` を使用することで、カレントディレクトリがPythonパスに追加され、`utils` モジュールを正しくインポートできます。
+`python -m` によりカレントディレクトリが Python パスに入り、`orbit` と `utils` をインポートできます。
 
-## CV・OOF・成果物の共通基盤
+## ローカル評価と成果物
 
-`utils.validation` はscikit-learnなどの分割インデックスを受け取り、以下を行います。
+`eval_v01` は seed 42 の 1 試合です。候補がランダムまたは最近傍ヒューリスティックで、対戦相手はシード付きランダムです。1 試合の勝敗は安定した強さの推定ではありません。
 
-- `make_cv_plan`：CV分割を検証（train/validation重複、fold間の重複、行ID重複）。`groups`や`times`を与えた場合はGroup/Timeリークを追加検出します。
-- `save_cv_plan` / `load_cv_plan`：分割と元データの**行ID・順序**をJSONに保存して再利用します。CVの上書きや異なるデータへの誤適用を防止します。
-- `build_oof_frame` / `save_oof_csv`：fold別の予測を元の行順に並べ、形状不一致・NaN/Inf・欠損を検出してCSVに保存します（1次元/多クラス2次元）。
-- `cv_fingerprint`：CV分割全体のハッシュ値を取得できます。
+シミュレータは PyPI の `kaggle-environments` 1.33.2 wheel には含まれません。`pyproject.toml` の git revision `aeb49aea5f50eb02f287f3e4db4415dc61429791` を使います。プロトコルとインストール済みコミットが違うと実行は失敗します。
 
-`utils.artifacts.experiment_run` は `output/experiments/<major>/<minor>/<run_id>/` に一意の成果物ディレクトリを作ります。終了/失敗状態、Git commit、CV ID、データ版を `run.json` に、解決済み設定を `config.yaml` に保存し、**実際に`save_metrics()`を呼んだ場合のみ** `metrics.json` を生成します。設定内の典型的な秘密情報のキーは伏字化しますが、任意の値に埋め込まれた機密情報を完全に検出するものではありません。
+`utils.artifacts.experiment_run` は `output/experiments/<major>/<minor>/<run_id>/` を作ります。`run.json` に終了状態、Git commit、評価プロトコル、環境コミットを書き、`config.yaml` に解決済み設定を書きます。`metrics.json` は `save_metrics()` を呼んだときだけ生成します。試合単位の結果は `games.json` です。設定内の典型的な秘密情報キーは伏字にします。
 
-最小のCPUデモ（合成データ、ネットワークなし、実データ不要）：
+`run.json` は一次情報です。W&B への自動転送と `docs/EXPERIMENT_LOG.md` への自動追記は行いません。詳細は [実験運用規約](docs/EXPERIMENTS.md) を参照してください。
 
-```bash
-uv run python -m tools.demo_cv
-```
+`uv.lock` は Git 管理します。依存更新後に `uv lock` を実行し、コミットするときはロックファイルも含めます。Kaggle 公式 Docker イメージと uv 環境は同一ではありません。
 
-出力例：
+## CI
 
-```text
-output/
-├── cv/demo_v01.json
-└── experiments/exp000_demo_cv/000/<run_id>/
-    ├── config.yaml
-    ├── run.json
-    ├── metrics.json
-    └── oof.csv
-```
-
-CV・データ版の選定や評価関数、実際の学習処理は**コンペ固有**です。共通ユーティリティはリークの完全な防止やモデルの性能を保証しません。時系列分割で未評価行がある場合は `make_cv_plan(..., require_complete=False)` と `build_oof_frame(..., allow_partial=True)` を指定し、その評価対象行だけに対応するOOFを扱います。
-
-`run.json` は一次情報ですが、W&Bへのメトリクス自動転送と `docs/EXPERIMENT_LOG.md` への自動追記は現時点で行われません。詳細は [実験運用規約](docs/EXPERIMENTS.md) を参照してください。
-
-## Kaggle API ツール
-
-`uv sync --group dev` で依存関係をインストールしてください。
-
-```bash
-uv run python tools/check_submission.py <competition> --timeout 3600
-uv run python tools/upload_model.py --title my-models --user-name YOUR_KAGGLE_USERNAME --dir ./output/experiments --pattern '**/best_model.pt' --new
-```
-
-`uv.lock` はGit管理します。依存更新後に `uv lock` を実行しコミットしてください。
-Kaggle公式Dockerイメージとuv環境は現時点で完全に同一ではありません。Dockerの依存関係と実行確認は別途対応が必要です。
-
-## CI・Kaggle提出CSVの事前検証
-
-GitHub Actions（`.github/workflows/ci.yml`）はPRと`main`へのpushで、固定済み依存環境（`uv.lock`）を使ってRuff・pytest・合成CVデモ・Hydraサンプルを実行します。**実データ、Kaggle API認証、提出、GPUはCIでは使用しません。** 初回はGitHubのActions画面で結果を確認してください。
-
-提出前に`sample_submission.csv`を元にローカルCSVを検査できます。実際の提出は行いません。
-
-~~~bash
-# 列名、列順、行数、ID順序、欠損、targetの数値・有限性を検証
-uv run python -m tools.validate_submission output/submission.csv \
-  --sample input/sample_submission.csv --numeric target
-
-# ID列がPassengerIdなど独自名なら明示
-uv run python -m tools.validate_submission output/submission.csv \
-  --sample input/sample_submission.csv --id-column PassengerId --numeric Survived
-
-# ID列のないコンペの場合のみ（並びの正しさは機械的に判定できません）
-uv run python -m tools.validate_submission output/submission.csv \
-  --sample input/sample_submission.csv --no-id --numeric target
-~~~
-
-- ID列は`id`（大文字小文字を無視して完全一致）だけ自動認識します。それ以外は`--id-column`、IDがなければ`--no-id`を指定してください。
-- IDの並び順は標準で厳密に検証します。コンペがIDによる対応付けを許可することを確認した場合だけ、`--allow-reordered`を指定できます。
-- `--numeric`を指定した予測列について、文字列や`NaN`・`Inf`を拒否します。複数列なら繰り返し指定します。カテゴリ文字列予測は`--numeric`を付けずに検証してください。
-- 形式検証だけでは、クラス値の範囲、確率総和、評価方式、提出回数制限、外部データ利用規約、推論の正しさは保証できません。**公式Rules/Evaluationの確認と本番提出の明示的な承認は別途必要**です。
-- CV設計のレビュー・fold/OOF整合性検証には、必要時に[validate-cv Agent Skill](.agents/skills/validate-cv/SKILL.md)を参照してください。詳細な手順を`AGENTS.md`に常時読み込ませる必要はありません。
+GitHub Actions（`.github/workflows/ci.yml`）は PR と `main` への push で、`uv.lock` を使って Ruff、pytest、`exp001_random_eval` の 1 試合を実行します。Kaggle API 認証、提出、GPU は CI では使いません。Kaggle への提出は行いません。
 

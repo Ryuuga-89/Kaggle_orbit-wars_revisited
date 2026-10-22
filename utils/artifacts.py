@@ -135,14 +135,15 @@ def experiment_run(
     major: str,
     minor: str,
     config: Any,
-    cv_id: str | None = None,
-    cv_fingerprint: str | None = None,
-    data_version: str | None = None,
+    eval_protocol_id: str | None = None,
+    eval_protocol_fingerprint: str | None = None,
+    environment_version: str | None = None,
 ) -> Iterator[ExperimentRun]:
     """Create a unique run directory and automatically record final status.
 
-    The caller passes resolved experiment configuration and explicit CV/data
-    provenance. Never reuse the same run directory or overwrite artifacts.
+    The caller passes resolved experiment configuration and the evaluation
+    protocol that produced the run. Never reuse the same run directory or
+    overwrite artifacts.
     """
     if not _COMPONENT.fullmatch(major) or not _COMPONENT.fullmatch(minor):
         raise ValueError("major/minor must be simple path components")
@@ -155,16 +156,16 @@ def experiment_run(
     directory = root / run_id
     directory.mkdir(exist_ok=False)
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "major": major,
         "minor": minor,
         "status": "running",
         "started_at": _utc_now(),
         "git_commit": _git_sha(),
-        "cv_id": cv_id,
-        "cv_fingerprint": cv_fingerprint,
-        "data_version": data_version,
+        "eval_protocol_id": eval_protocol_id,
+        "eval_protocol_fingerprint": eval_protocol_fingerprint,
+        "environment_version": environment_version,
         "host": socket.gethostname(),
     }
     (directory / "config.yaml").write_text(yaml_text, encoding="utf-8")

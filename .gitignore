@@ -9,7 +9,6 @@
 # uv
 .venv/
 
-# tmp directory (created by tools/upload_model.py)
 /tmp/
 
 

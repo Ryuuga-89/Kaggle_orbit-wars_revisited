@@ -38,8 +38,5 @@ jobs:
       - name: pytest
         run: uv run --locked pytest -q
 
-      - name: Synthetic CV smoke test
-        run: uv run --locked python -m tools.demo_cv
-
-      - name: Hydra sample smoke test (offline W&B)
-        run: uv run --locked python -m experiments.exp000_sample.run exp=000 exp.debug=true
+      - name: Orbit Wars evaluation smoke
+        run: uv run --locked python -m experiments.exp001_random_eval.run exp=000

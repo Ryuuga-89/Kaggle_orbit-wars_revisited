@@ -1,0 +1,13 @@
+id: eval_v01
+environment: orbit_wars
+environment_commit: aeb49aea5f50eb02f287f3e4db4415dc61429791
+players: 2
+seeds:
+  - 42
+games_per_seed: 1
+opponent: random
+configuration:
+  episodeSteps: 500
+  actTimeout: 1
+  shipSpeed: 6.0
+  cometSpeed: 4.0

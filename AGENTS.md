@@ -1,6 +1,6 @@
 # AIエージェント共通規約
 
-このリポジトリはKaggle用のPython + Hydra実験テンプレートです。**変更範囲に必要な情報だけを読む**こと。Codex・Cursor・Antigravityなどで共通利用します。この文書はユーザーの明示的な指示、コンペ公式ルール、各実行環境の権限・サンドボックス設定を上書きしません。
+このリポジトリは、終了済み Kaggle コンペ Orbit Wars（`orbit-wars`）を再挑戦するための Python + Hydra 実験環境です。現在は初期段階であり、環境の理解と進行方針の確定を優先する。学習アルゴリズムの実装は、方針が文書化されるまで始めない。公式順位の更新は目的にしない。コンペ事実の正本は `docs/COMPETITION.md`、現在の作業状態は `docs/HANDOVER.md` です。提出物は `agent(obs)` を持つエージェントで、比較は `orbit/protocols/` のローカル対戦プロトコルで行う。**変更範囲に必要な情報だけを読む**こと。Codex・Cursor・Antigravityなどで共通利用します。この文書はユーザーの明示的な指示、コンペ公式ルール、各実行環境の権限・サンドボックス設定を上書きしません。
 
 ## 必要に応じて参照する資料
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | セットアップ・実行コマンド | `README.md` |
 | 実験の新規作成・設定変更 | `docs/EXPERIMENTS.md`、対象の `experiments/` |
-| CV・OOFの検証・改善 | `.agents/skills/validate-cv/SKILL.md`（必要時のみ）、`docs/COMPETITION.md`、対象コード |
+| ローカル対戦評価の変更 | `docs/COMPETITION.md`、`orbit/protocols/`、`orbit/match.py` |
 | 提出仕様・データ規約の確認 | `docs/COMPETITION.md`、Kaggle公式Rules/Data/Evaluation |
 | 途中から作業を再開・ジョブを引き継ぐ | `docs/HANDOVER.md` |
 | 過去の実験を比較する | `docs/EXPERIMENT_LOG.md`、W&Bや実際の成果物 |
@@ -21,8 +21,8 @@
 - Python 3.12以上、依存管理は `pyproject.toml` とGit管理された `uv.lock`。依存変更後はロックファイルも更新する。
 - ローカルJupyterは使わない。`notebooks/` はKaggleで実行・提出するNotebook用。通常のコード・学習は `.py` を使用する。
 - Major実験は `experiments/expNNN_description/`、同一実装の設定差分は `exp/NNN.yaml`。完了した実験の成果物・設定を黙って上書きしない。
-- `utils.artifacts`に共通run ID・設定・状態・メトリクス保存、`utils.validation`にCV分割・OOF整合性検証がある。ただし、学習・評価値計算・W&Bへのスコア転送・実験間の自動比較は未実装。
-- 異なるCV分割・データ版・評価関数の結果を直接比較しない。Group/Time/Entityリーク、前処理や特徴量生成での教師情報混入を検証する。
+- `utils.artifacts`に共通run ID・設定・状態・メトリクス保存がある。学習、公式レーティングの取得、W&Bへのスコア転送、実験間の自動比較は未実装。
+- 評価プロトコル、環境コミット、対戦相手が違う結果を直接比較しない。学習データに評価用 seed の手順を混ぜない。
 - 秘密情報、認証トークン、非公開データ、巨大な学習成果物をGitや外部ログへ公開しない。
 
 ## 実行と承認の境界
@@ -33,15 +33,15 @@
 - 新しい有料リソース契約、予算超過、未許可の外部送信、破壊的Git操作・強制push、秘密情報の開示は自動実行しない。自然言語の規約だけでなく、利用可能な実行権限・サンドボックスで制御する。
 - 複数エージェントが並行作業する場合は、作業対象のファイル・実験・ブランチを分離する。既存の変更を無断でリセットしない。
 
-## 提出前の機械的検証
+## 提出前の確認
 
-- 提出CSVがある場合は `uv run python -m tools.validate_submission <csv> --sample <sample_submission.csv> --id-column <ID列> --numeric <予測列>` を使ってローカルで確認する。ID列が `id` の場合は自動検出する。ID列がないコンペでのみ `--no-id` を明示する。
-- このCLIはKaggleへ接続せず、列・行数・ID・任意指定の数値列だけを検証する。コンペの規約、許容範囲、確率の合計、評価指標、予測の正当性まで保証するものではない。CIはサンプルデータでテストし、本番提出を自動実行しない。
+- 提出物は CSV ではない。ローカル確認は、採用中の評価プロトコルで `experiments/exp001_random_eval` または比較対象の実験を実行し、`games.json` と `metrics.json` を残すこと。
+- Kaggle への提出は自動実行しない。CI も提出しない。
 
 ## 変更の検証・引き継ぎ
 
 - 変更内容に応じた範囲でテストとLintを選ぶ。標準コマンドは `uv run pytest -q` と `uv run ruff check .`。結果、未実施項目、既存の失敗を区別して報告する。
-- Hydraのサンプル動作確認は `uv run python -m experiments.exp000_sample.run exp=000 exp.debug=true`。これは実際の学習ではない。`debug=true` はW&Bの送信を抑止する設定であり、計算量を減らさない。
+- 評価経路の動作確認は `uv run python -m experiments.exp001_random_eval.run exp=000`。これは学習ではなく、`eval_v01` の1試合である。
 - 実験結果はrunディレクトリの `run.json`・`config.yaml`・実測値を含む `metrics.json`等に保存し、`docs/EXPERIMENT_LOG.md`へ仮説・判断・成果物への参照を記録する。メトリクスを創作しない。
 - `docs/HANDOVER.md` は**現在状態の要約**。実験方針の変更、重要な結果、作業の中断・再開、長時間ジョブの引き継ぎなどで更新する。軽微な編集のたびに更新しない。
 - 実装済み機能と計画中の機能を区別する。将来の詳細手順は、必要になった段階でAgent Skillsへ分離し、未実装ツールを実行可能と説明しない。

@@ -1,32 +1,20 @@
 [project]
-name = "kaggle-template"
+name = "orbit-wars-revisited"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    # 基本ライブラリ
     "numpy",
-    "pandas",
-    "polars",
-    "scikit-learn",
-    "matplotlib",
-    "seaborn",
-    # ML関連
-    "lightgbm",
-    "xgboost",
-    "catboost",
-    # Deep Learning（PyPIデフォルト: LinuxはGPU版、他はCPU版）
     "torch",
     "torchvision",
     "torchaudio",
-    # 実験管理
     "hydra-core>=1.3",
     "wandb",
     "kaggle",
-    # ユーティリティ
     "tqdm",
-    "click",
     "python-dotenv",
     "psutil",
+    # PyPI の 1.33.2 wheel には orbit_wars が無い。実体は tool.uv.sources の git revision。
+    "kaggle-environments>=1.28.0",
 ]
 
 [dependency-groups]
@@ -40,9 +28,12 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint.isort]
-known-first-party = ["utils", "experiments"]
+known-first-party = ["agents", "experiments", "orbit", "utils"]
 
 [tool.pytest.ini_options]
-# Make project-local modules such as tools/ and utils/ importable when invoking pytest.
+# Make project-local modules such as orbit/ and utils/ importable when invoking pytest.
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.uv.sources]
+kaggle-environments = { git = "https://github.com/Kaggle/kaggle-environments.git", rev = "aeb49aea5f50eb02f287f3e4db4415dc61429791" }
