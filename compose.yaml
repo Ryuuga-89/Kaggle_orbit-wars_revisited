@@ -1,0 +1,21 @@
+services:
+  kaggle:
+    build: .
+    volumes:
+      - $PWD/input:/kaggle/input
+      - $PWD/.cache:/root/.cache
+      - $PWD:/kaggle/working
+    environment:
+      - NETRC=/kaggle/working/.netrc
+    working_dir: /kaggle/working
+    command: bash
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    shm_size: '8gb'

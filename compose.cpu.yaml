@@ -1,0 +1,17 @@
+services:
+  kaggle:
+    container_name: kaggle-cpu
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    volumes:
+      - $PWD/input:/kaggle/input
+      - $PWD/.cache:/root/.cache
+      - $PWD:/kaggle/working
+    environment:
+      - NETRC=/kaggle/working/.netrc
+    working_dir: /kaggle/working
+    command: bash
+    stdin_open: true
+    tty: true
+    shm_size: '2gb'

@@ -1,0 +1,48 @@
+[project]
+name = "kaggle-template"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    # 基本ライブラリ
+    "numpy",
+    "pandas",
+    "polars",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    # ML関連
+    "lightgbm",
+    "xgboost",
+    "catboost",
+    # Deep Learning（PyPIデフォルト: LinuxはGPU版、他はCPU版）
+    "torch",
+    "torchvision",
+    "torchaudio",
+    # 実験管理
+    "hydra-core>=1.3",
+    "wandb",
+    "kaggle",
+    # ユーティリティ
+    "tqdm",
+    "click",
+    "python-dotenv",
+    "psutil",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint.isort]
+known-first-party = ["utils", "experiments"]
+
+[tool.pytest.ini_options]
+# Make project-local modules such as tools/ and utils/ importable when invoking pytest.
+pythonpath = ["."]
+testpaths = ["tests"]
